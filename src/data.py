@@ -10,6 +10,8 @@ Handles:
   - Defining the target variable (fatal vs non-fatal)
 """
 
+import os
+import sys
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from config import (
@@ -32,7 +34,16 @@ def load_data(path):
     or 1430 (meaning 2:30 PM). We extract the hour by integer
     dividing by 100.
     """
-    df = pd.read_csv(path)
+    if not os.path.exists(path):
+        print(f"Error: Data file not found at '{path}'.")
+        print("Please ensure the dataset exists before running the script.")
+        sys.exit(1)
+
+    try:
+        df = pd.read_csv(path)
+    except Exception as e:
+        print(f"Error loading {path}: {e}")
+        sys.exit(1)
 
     # Parse date string ("1/1/2006 10:00:00 AM" -> datetime)
     df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
