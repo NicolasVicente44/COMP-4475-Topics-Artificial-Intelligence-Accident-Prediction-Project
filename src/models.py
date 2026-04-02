@@ -36,21 +36,20 @@ from config import (
 )
 
 
-def train_models(df, cols):
+def train_models(df_dedup, cols):
     """
     Train three classifiers and compare performance.
 
-    Uses stratified split to handle the class imbalance (only ~14%
-    of collisions are fatal). Logistic Regression gets scaled features;
-    tree-based models use raw values.
+    Uses deduplicated data (one row per accident) to prevent data
+    leakage. Stratified split preserves class balance.
 
     Returns:
         results: Dict with model objects and metrics per model
         X_test:  Test features (for plotting later)
         y_test:  Test labels  (for plotting later)
     """
-    X = df[cols].fillna(0)
-    y = df["is_fatal"]
+    X = df_dedup[cols].fillna(0)
+    y = df_dedup["is_fatal"]
 
     # 80/20 stratified split
     X_tr, X_te, y_tr, y_te = train_test_split(
@@ -116,10 +115,16 @@ def train_models(df, cols):
         print(f"\n  {name}: Acc={acc:.4f} | F1={f1:.4f} | AUC={auc:.4f}")
         print(classification_report(y_te, y_pred, target_names=["Non-Fatal", "Fatal"]))
 
-    # Cross-validation on Random Forest
-    cv = cross_val_score(
-        models["Random Forest"][0], X, y, cv=5, scoring="roc_auc", n_jobs=-1
+    # Cross-validation on Random Forest (fresh instance to avoid confusion
+    # with the already-fitted model above)
+    cv_model = RandomForestClassifier(
+        n_estimators=RF_TREES,
+        max_depth=RF_DEPTH,
+        class_weight="balanced",
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
     )
+    cv = cross_val_score(cv_model, X, y, cv=5, scoring="roc_auc", n_jobs=-1)
     print(f"  Random Forest 5-Fold CV AUC: {cv.mean():.4f} (+/- {cv.std():.4f})")
 
     return results, X_te, y_te

@@ -129,12 +129,36 @@ def engineer_features(df):
     # ── Target variable ────────────────────────────────────
     df["is_fatal"] = (df["ACCLASS"] == "Fatal").astype(int)
 
+    # ── Deduplicate: one row per accident ──────────────────
+    # The raw dataset has multiple rows per accident (one per person
+    # involved). Using all rows causes data leakage because rows from
+    # the same accident share identical features and labels. We keep
+    # the full dataframe (df) for spatial analysis / risk grid, but
+    # create a deduplicated version (df_dedup) for model training.
+    #
+    # For binary columns (SPEEDING, ALCOHOL, etc.), we use max() so
+    # that if ANY person in the accident had that flag, it's preserved.
+    # For other features, we take the first row since they're identical
+    # within an accident.
+
+    print(f"  Before dedup: {len(df)} rows | {df['ACCNUM'].nunique()} unique accidents")
+
+    agg_dict = {c: "first" for c in df.columns if c != "ACCNUM"}
+    for c in BINARY_COLS:
+        if c in df.columns:
+            agg_dict[c] = "max"  # preserve if ANY person had the flag
+    agg_dict["is_fatal"] = "max"  # fatal if ANY person died
+
+    df_dedup = df.groupby("ACCNUM").agg(agg_dict).reset_index()
+
+    print(f"  After dedup:  {len(df_dedup)} rows (one per accident)")
+
     # Only keep features that actually exist in the dataframe
     cols = [c for c in FEATURE_COLS if c in df.columns]
 
     print(
-        f"  {df['grid_cell'].nunique()} grid cells | {len(df)} records | {len(cols)} features"
+        f"  {df['grid_cell'].nunique()} grid cells | {len(cols)} features"
     )
-    print(f"  Fatal: {df['is_fatal'].sum()} | Non-fatal: {(df['is_fatal'] == 0).sum()}")
+    print(f"  Fatal: {df_dedup['is_fatal'].sum()} | Non-fatal: {(df_dedup['is_fatal'] == 0).sum()}")
 
-    return df, encoders, cols
+    return df, df_dedup, encoders, cols

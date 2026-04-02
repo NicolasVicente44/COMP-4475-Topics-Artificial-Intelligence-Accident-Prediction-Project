@@ -1,21 +1,21 @@
 """
 src/plots.py - All visualization and plotting functions.
 
-Generates 15 plots total:
+Generates 14 plots total:
   01 - Exploratory analysis (6-panel overview)
   02 - Model performance comparison (accuracy, F1, AUC bars)
   03 - ROC curves for all models
   04 - Confusion matrices
   05 - Feature importance (Random Forest top 15)
-  07 - Collision risk by hour of day
-  08 - Collision risk by day of week
-  09 - Risk by road surface condition
-  10 - Risk by visibility
-  11 - Toronto collision risk heatmap
-  12 - Example scenario predictions
-  13 - Route comparison (distance vs risk for each route)
-  14 - Route map (shortest vs safest paths on heatmap)
-  15 - Risk reduction summary (all routes overview)
+  06 - Collision risk by hour of day
+  07 - Collision risk by day of week
+  08 - Risk by road surface condition
+  09 - Risk by visibility
+  10 - Toronto collision risk heatmap
+  11 - Example scenario predictions
+  12 - Route comparison (distance vs risk for each route)
+  13 - Route map (shortest vs safest paths on heatmap)
+  14 - Risk reduction summary (all routes overview)
 """
 
 import numpy as np
@@ -197,7 +197,7 @@ def plot_hourly_risk(df):
     a1.set_title("Collision Risk by Hour of Day")
     a1.legend(loc="upper left")
     a2.legend(loc="upper right")
-    _save("07_hourly_risk.png")
+    _save("06_hourly_risk.png")
 
 
 def plot_daily_risk(df):
@@ -213,7 +213,7 @@ def plot_daily_risk(df):
     )
     for b, v in zip(bars, dr.values):
         ax.text(b.get_x() + b.get_width() / 2, v + 0.002, f"{v:.3f}", ha="center")
-    _save("08_daily_risk.png")
+    _save("07_daily_risk.png")
 
 
 def plot_road_condition_risk(df):
@@ -228,7 +228,7 @@ def plot_road_condition_risk(df):
     ax.barh(cr["RDSFCOND"], cr["risk"], color="teal", edgecolor="black")
     ax.set(xlabel="Avg Risk Score", title="Risk by Road Surface Condition")
     plt.tight_layout()
-    _save("09_road_condition_risk.png")
+    _save("08_road_condition_risk.png")
 
 
 def plot_visibility_risk(df):
@@ -243,7 +243,7 @@ def plot_visibility_risk(df):
     ax.barh(vr["VISIBILITY"], vr["risk"], color="goldenrod", edgecolor="black")
     ax.set(xlabel="Avg Risk Score", title="Risk by Visibility")
     plt.tight_layout()
-    _save("10_visibility_risk.png")
+    _save("09_visibility_risk.png")
 
 
 def plot_risk_heatmap(df):
@@ -261,7 +261,7 @@ def plot_risk_heatmap(df):
     )
     plt.colorbar(sc, label="Risk Score (0=Low, 1=High)")
     ax.set(xlabel="Longitude", ylabel="Latitude", title="Toronto Collision Risk Map")
-    _save("11_risk_heatmap.png")
+    _save("10_risk_heatmap.png")
 
 
 def plot_risk_analysis(df):
@@ -271,7 +271,7 @@ def plot_risk_analysis(df):
     plot_road_condition_risk(df)
     plot_visibility_risk(df)
     plot_risk_heatmap(df)
-    print("  Saved: 07-11 (risk analysis)")
+    print("  Saved: 06-10 (risk analysis)")
 
 
 # ── Scenario Predictions Plot ─────────────────────────────
@@ -300,8 +300,8 @@ def plot_scenarios(names, risks):
     for b, v in zip(bars, risks):
         ax.text(v + 0.02, b.get_y() + b.get_height() / 2, f"{v:.3f}", va="center")
     plt.tight_layout()
-    _save("12_scenario_predictions.png")
-    print("  Saved: 12_scenario_predictions.png")
+    _save("11_scenario_predictions.png")
+    print("  Saved: 11_scenario_predictions.png")
 
 
 # ── Routing Plots ─────────────────────────────────────────
@@ -346,8 +346,8 @@ def plot_route_comparison(all_routes):
 
     plt.suptitle("A* Pathfinding: Shortest vs Safest Routes", fontsize=16)
     plt.tight_layout()
-    _save("13_route_comparison.png")
-    print("  Saved: 13_route_comparison.png")
+    _save("12_route_comparison.png")
+    print("  Saved: 12_route_comparison.png")
 
 
 def plot_route_map(all_routes, df):
@@ -451,8 +451,8 @@ def plot_route_map(all_routes, df):
         fontsize=16, fontweight="bold", y=1.01,
     )
     plt.tight_layout()
-    _save("14_route_map.png")
-    print("  Saved: 14_route_map.png")
+    _save("13_route_map.png")
+    print("  Saved: 13_route_map.png")
 
 
 def plot_risk_reduction_summary(all_routes):
@@ -499,5 +499,5 @@ def plot_risk_reduction_summary(all_routes):
     ax.legend(loc="upper right")
 
     plt.tight_layout()
-    _save("15_risk_reduction_summary.png")
-    print("  Saved: 15_risk_reduction_summary.png")
+    _save("14_risk_reduction_summary.png")
+    print("  Saved: 14_risk_reduction_summary.png")

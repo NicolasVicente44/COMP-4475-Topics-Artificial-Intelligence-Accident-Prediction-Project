@@ -60,6 +60,10 @@ ENCODE_COLS = [
     "LIGHT",
     "RDSFCOND",
     "IMPACTYPE",
+    "DRIVACT",
+    "DRIVCOND",
+    "MANOEUVER",
+    "DISTRICT",
 ]
 
 # All features the model uses (temporal + spatial + encoded + binary)

@@ -225,6 +225,7 @@ def astar(grid, start, goal, mode="safest"):
 
         explored += 1
         if explored > 50000:  # Safety limit
+            print(f"  WARNING: A* search hit {explored} node limit without finding a path.")
             break
 
         for nb in grid.neighbors(current):

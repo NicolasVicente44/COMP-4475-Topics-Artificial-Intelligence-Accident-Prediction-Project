@@ -112,11 +112,11 @@ def main():
 
     # ── Step 2: Feature engineering ────────────────────────
     print("\n[2/6] Engineering features...")
-    df, encoders, cols = engineer_features(df)
+    df, df_dedup, encoders, cols = engineer_features(df)
 
     # ── Step 3: Train models ───────────────────────────────
     print("\n[3/6] Training models...")
-    results, X_test, y_test = train_models(df, cols)
+    results, X_test, y_test = train_models(df_dedup, cols)
 
     # ── Step 4: Risk scores & scenarios ────────────────────
     print("\n[4/6] Computing risk scores...")
@@ -187,11 +187,13 @@ def _save_risk_grid(df):
     """Save the risk grid CSV needed by the routing module."""
     ROUTE_GRID = 0.005  # Finer grid for routing (~500m)
 
-    df["glat"] = (df["LATITUDE"] / ROUTE_GRID).round() * ROUTE_GRID
-    df["glon"] = (df["LONGITUDE"] / ROUTE_GRID).round() * ROUTE_GRID
+    # Work on a copy to avoid mutating the original DataFrame
+    gdf = df[["LATITUDE", "LONGITUDE", "combined_risk", "OBJECTID", "is_fatal"]].copy()
+    gdf["glat"] = (gdf["LATITUDE"] / ROUTE_GRID).round() * ROUTE_GRID
+    gdf["glon"] = (gdf["LONGITUDE"] / ROUTE_GRID).round() * ROUTE_GRID
 
     grid_data = (
-        df.groupby(["glat", "glon"])
+        gdf.groupby(["glat", "glon"])
         .agg(
             risk=("combined_risk", "mean"),
             count=("OBJECTID", "count"),
