@@ -91,6 +91,37 @@ class App:
         self.cb_end.bind("<Button-1>", clear_end)
         self.cb_end.bind("<FocusIn>", clear_end)
 
+        def autocomplete(event, cb, sv):
+            if event and event.keysym in ("Return", "Up", "Down", "Left", "Right", "Shift_L", "Shift_R", "Tab"):
+                return
+            typed = sv.get()
+            if typed == "Type an address or select...":
+                return
+            
+            if not typed.strip():
+                filtered = NAMES
+            else:
+                filtered = [n for n in NAMES if typed.lower() in n.lower()]
+                
+            cb.configure(values=filtered)
+            
+            if filtered and typed.strip():
+                try:
+                    # Instantly open the dropdown menu to show filtered autocomplete results
+                    x = cb.winfo_rootx()
+                    y = cb.winfo_rooty() + cb.winfo_height()
+                    cb._dropdown_menu.open(x, y)
+                except Exception:
+                    pass
+            elif not filtered:
+                try:
+                    cb._dropdown_menu._withdraw()
+                except Exception:
+                    pass
+
+        self.cb_start.bind("<KeyRelease>", lambda e: autocomplete(e, self.cb_start, self.sv))
+        self.cb_end.bind("<KeyRelease>", lambda e: autocomplete(e, self.cb_end, self.ev))
+
         # Find Button
         self.btn_find = ctk.CTkButton(self.sidebar, text="FIND ROUTES", command=self._run, font=ctk.CTkFont(weight="bold"), height=45)
         self.btn_find.grid(row=6, column=0, padx=20, pady=(10, 10), sticky="ew")
@@ -244,7 +275,7 @@ class App:
                 return
             self._show_results(r)
             self._draw_route(r, sn, en)
-            self.status.set(f"Done! Risk dynamically reduced by {r['risk_reduction']*100:.1f}%")
+            self.status.set(f"Done! Risk reduced by {r['risk_reduction']*100:.1f}%")
         except Exception as e:
             self.status.set(f"Error: {e}")
 
