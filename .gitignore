@@ -1,5 +1,7 @@
 # Outputs
 outputs/
+cache/
+.cache/
 
 # Python
 __pycache__/
