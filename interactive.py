@@ -74,6 +74,12 @@ class App:
         self.cb_start = ctk.CTkComboBox(self.sidebar, variable=self.sv, values=NAMES, width=320, height=35)
         self.cb_start.grid(row=3, column=0, padx=20, pady=(0, 10))
         self.cb_start.set("Type an address or select...")
+        
+        def clear_start(event):
+            if self.sv.get() == "Type an address or select...":
+                self.cb_start.set("")
+        self.cb_start.bind("<Button-1>", clear_start)
+        self.cb_start.bind("<FocusIn>", clear_start)
 
         # End Entry
         self.ev = tk.StringVar(value="")
@@ -83,6 +89,12 @@ class App:
         self.cb_end = ctk.CTkComboBox(self.sidebar, variable=self.ev, values=NAMES, width=320, height=35)
         self.cb_end.grid(row=5, column=0, padx=20, pady=(0, 20))
         self.cb_end.set("Type an address or select...")
+
+        def clear_end(event):
+            if self.ev.get() == "Type an address or select...":
+                self.cb_end.set("")
+        self.cb_end.bind("<Button-1>", clear_end)
+        self.cb_end.bind("<FocusIn>", clear_end)
 
         # Find Button
         self.btn_find = ctk.CTkButton(self.sidebar, text="FIND ROUTES", command=self._run, font=ctk.CTkFont(weight="bold"), height=45)
