@@ -59,12 +59,7 @@ class App:
         self.sidebar.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         self.sidebar.grid_rowconfigure(8, weight=1)
 
-        # Title/Logo
-        self.logo = ctk.CTkLabel(self.sidebar, text="Navigation AI", font=ctk.CTkFont(size=28, weight="bold"))
-        self.logo.grid(row=0, column=0, padx=20, pady=(30, 5))
-        
-        self.desc = ctk.CTkLabel(self.sidebar, text="Find the fastest vs safest routes.", font=ctk.CTkFont(size=14), text_color="gray")
-        self.desc.grid(row=1, column=0, padx=20, pady=(0, 20))
+        # Title area removed per user request
 
         # Start Entry
         self.sv = tk.StringVar(value="")
