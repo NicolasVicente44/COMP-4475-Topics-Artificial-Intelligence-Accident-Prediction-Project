@@ -78,11 +78,11 @@ class App:
         ttk.Label(ctrl, text="Start:", style="I.TLabel").pack(anchor="w", pady=(5, 2))
         self.sv = tk.StringVar(value=NAMES[0])
         ttk.Combobox(ctrl, textvariable=self.sv, values=NAMES,
-                     state="readonly", width=32).pack(fill="x")
+                     width=32).pack(fill="x")
         ttk.Label(ctrl, text="End:", style="I.TLabel").pack(anchor="w", pady=(8, 2))
         self.ev = tk.StringVar(value=NAMES[3])
         ttk.Combobox(ctrl, textvariable=self.ev, values=NAMES,
-                     state="readonly", width=32).pack(fill="x")
+                     width=32).pack(fill="x")
         ttk.Button(ctrl, text="FIND ROUTES", command=self._run).pack(fill="x", pady=(12, 5))
         self.status = tk.StringVar(value="")
         ttk.Label(ctrl, textvariable=self.status, style="I.TLabel",
@@ -177,14 +177,44 @@ class App:
                   style="O.TLabel").pack(anchor="w", pady=(8, 0))
 
     def _run(self):
-        sn, en = self.sv.get(), self.ev.get()
-        if sn == en:
-            messagebox.showwarning("Error", "Pick different locations.")
+        sn, en = self.sv.get().strip(), self.ev.get().strip()
+        if not sn or not en:
+            messagebox.showwarning("Error", "Please enter start and end locations.")
             return
-        self.status.set("Computing...")
+        if sn == en:
+            messagebox.showwarning("Error", "Start and end cannot be the same.")
+            return
+
+        self.status.set("Geocoding addresses...")
+        self.root.update()
+
+        def get_coords(loc_name):
+            if loc_name in LOCS:
+                return LOCS[loc_name]
+            import osmnx as ox
+            query = loc_name
+            if "toronto" not in query.lower() and "mississauga" not in query.lower():
+                query += ", Toronto, Ontario, Canada"
+            try:
+                # Returns (lat, lon)
+                return ox.geocode(query)
+            except Exception:
+                return None
+
+        start_loc = get_coords(sn)
+        if not start_loc:
+            self.status.set("Error: Could not find start address.")
+            return
+
+        end_loc = get_coords(en)
+        if not end_loc:
+            self.status.set("Error: Could not find end address.")
+            return
+
+        self.status.set("Computing routes...")
         self.root.update()
         try:
-            r = compare_routes(self.grid, LOCS[sn], LOCS[en])
+            r = compare_routes(self.grid, start_loc, end_loc)
             if not r:
                 self.status.set("No path found.")
                 return
