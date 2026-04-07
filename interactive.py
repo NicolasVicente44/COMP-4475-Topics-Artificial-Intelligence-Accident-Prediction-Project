@@ -76,13 +76,17 @@ class App:
         ctrl = ttk.Frame(left, style="P.TFrame", padding=12)
         ctrl.pack(fill="x", pady=(0, 8))
         ttk.Label(ctrl, text="Start:", style="I.TLabel").pack(anchor="w", pady=(5, 2))
-        self.sv = tk.StringVar(value=NAMES[0])
-        ttk.Combobox(ctrl, textvariable=self.sv, values=NAMES,
-                     width=32).pack(fill="x")
+        self.sv = tk.StringVar(value="")
+        cb_start = ttk.Combobox(ctrl, textvariable=self.sv, values=NAMES, width=32)
+        cb_start.pack(fill="x")
+        cb_start.set("Type an address or select...")
+        
         ttk.Label(ctrl, text="End:", style="I.TLabel").pack(anchor="w", pady=(8, 2))
-        self.ev = tk.StringVar(value=NAMES[3])
-        ttk.Combobox(ctrl, textvariable=self.ev, values=NAMES,
-                     width=32).pack(fill="x")
+        
+        self.ev = tk.StringVar(value="")
+        cb_end = ttk.Combobox(ctrl, textvariable=self.ev, values=NAMES, width=32)
+        cb_end.pack(fill="x")
+        cb_end.set("Type an address or select...")
         ttk.Button(ctrl, text="FIND ROUTES", command=self._run).pack(fill="x", pady=(12, 5))
         self.status = tk.StringVar(value="")
         ttk.Label(ctrl, textvariable=self.status, style="I.TLabel",
@@ -178,7 +182,7 @@ class App:
 
     def _run(self):
         sn, en = self.sv.get().strip(), self.ev.get().strip()
-        if not sn or not en:
+        if not sn or not en or sn == "Type an address or select..." or en == "Type an address or select...":
             messagebox.showwarning("Error", "Please enter start and end locations.")
             return
         if sn == en:
