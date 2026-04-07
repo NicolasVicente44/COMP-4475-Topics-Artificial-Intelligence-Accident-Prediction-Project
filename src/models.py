@@ -1,13 +1,4 @@
-"""
-src/models.py - Model training, evaluation, and risk scoring.
-
-Handles:
-  - Training Logistic Regression, Random Forest, Gradient Boosting
-  - Evaluating with accuracy, F1, ROC-AUC, and classification reports
-  - Cross-validation for generalization check
-  - Computing combined risk scores (model prediction + location history)
-  - Running example scenario predictions
-"""
+# src/models.py - Model training, evaluation, and risk scoring.
 
 import pandas as pd
 import numpy as np
@@ -37,60 +28,39 @@ from config import (
 
 
 def train_models(df_dedup, cols):
-    """
-    Train three classifiers and compare performance.
-
-    Uses deduplicated data (one row per accident) to prevent data
-    leakage. Stratified split preserves class balance.
-
-    Returns:
-        results: Dict with model objects and metrics per model
-        X_test:  Test features (for plotting later)
-        y_test:  Test labels  (for plotting later)
-    """
+    """Train three classifiers on deduplicated data and compare performance."""
     X = df_dedup[cols].fillna(0)
     y = df_dedup["is_fatal"]
 
-    # 80/20 stratified split
     X_tr, X_te, y_tr, y_te = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )
 
-    # Scale for Logistic Regression (tree models don't need it)
     scaler = StandardScaler()
     X_tr_sc = scaler.fit_transform(X_tr)
     X_te_sc = scaler.transform(X_te)
 
-    # Define models (name -> (model, needs_scaling))
     models = {
         "Logistic Regression": (
-            LogisticRegression(
-                max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE
-            ),
+            LogisticRegression(max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE),
             True,
         ),
         "Random Forest": (
             RandomForestClassifier(
-                n_estimators=RF_TREES,
-                max_depth=RF_DEPTH,
-                class_weight="balanced",
-                random_state=RANDOM_STATE,
-                n_jobs=-1,
+                n_estimators=RF_TREES, max_depth=RF_DEPTH,
+                class_weight="balanced", random_state=RANDOM_STATE, n_jobs=-1,
             ),
             False,
         ),
         "Gradient Boosting": (
             GradientBoostingClassifier(
-                n_estimators=GB_TREES,
-                max_depth=GB_DEPTH,
-                learning_rate=GB_LR,
-                random_state=RANDOM_STATE,
+                n_estimators=GB_TREES, max_depth=GB_DEPTH,
+                learning_rate=GB_LR, random_state=RANDOM_STATE,
             ),
             False,
         ),
     }
 
-    # Train and evaluate each model
     results = {}
     for name, (model, use_scaled) in models.items():
         Xf = X_tr_sc if use_scaled else X_tr
@@ -105,24 +75,17 @@ def train_models(df_dedup, cols):
         auc = roc_auc_score(y_te, y_prob)
 
         results[name] = {
-            "model": model,
-            "accuracy": acc,
-            "f1": f1,
-            "auc": auc,
-            "y_pred": y_pred,
-            "y_prob": y_prob,
+            "model": model, "accuracy": acc,
+            "f1": f1, "auc": auc,
+            "y_pred": y_pred, "y_prob": y_prob,
         }
         print(f"\n  {name}: Acc={acc:.4f} | F1={f1:.4f} | AUC={auc:.4f}")
         print(classification_report(y_te, y_pred, target_names=["Non-Fatal", "Fatal"]))
 
-    # Cross-validation on Random Forest (fresh instance to avoid confusion
-    # with the already-fitted model above)
+    # Cross-validation on a fresh RF instance
     cv_model = RandomForestClassifier(
-        n_estimators=RF_TREES,
-        max_depth=RF_DEPTH,
-        class_weight="balanced",
-        random_state=RANDOM_STATE,
-        n_jobs=-1,
+        n_estimators=RF_TREES, max_depth=RF_DEPTH,
+        class_weight="balanced", random_state=RANDOM_STATE, n_jobs=-1,
     )
     cv = cross_val_score(cv_model, X, y, cv=5, scoring="roc_auc", n_jobs=-1)
     print(f"  Random Forest 5-Fold CV AUC: {cv.mean():.4f} (+/- {cv.std():.4f})")
@@ -131,15 +94,7 @@ def train_models(df_dedup, cols):
 
 
 def compute_risk_scores(df, results, cols):
-    """
-    Add a combined risk score (0-1) to every row in the dataset.
-
-    Combined risk = weighted blend of:
-      - Model prediction (probability of fatality from Random Forest)
-      - Location risk (historical collision density for that grid cell)
-
-    Weights are set in config.py (default: 60% model, 40% location).
-    """
+    """Add a combined risk score (0-1) blending model prediction and location history."""
     rf = results["Random Forest"]["model"]
     df["model_risk"] = rf.predict_proba(df[cols].fillna(0))[:, 1]
     df["combined_risk"] = (
@@ -165,22 +120,13 @@ def get_dangerous_areas(df, top_n=10):
 
 
 def predict_scenario(rf_model, cols, encoders, scenario):
-    """
-    Predict risk for a single scenario dict.
-
-    The scenario dict should contain values for each feature column.
-    Categorical features (ending in _enc) are encoded using the
-    saved LabelEncoders from training.
-
-    Returns (model_risk, combined_risk, risk_level).
-    """
+    """Predict risk for a single scenario dict. Returns (model_risk, combined_risk, level)."""
 
     def enc(col, val):
         if col in encoders and val in encoders[col].classes_:
             return encoders[col].transform([val])[0]
         return 0
 
-    # Build feature row
     row = {}
     for c in cols:
         if c.endswith("_enc"):
