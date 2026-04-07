@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
+import xgboost as xgb
 from sklearn.metrics import (
     classification_report,
     accuracy_score,
@@ -20,6 +21,9 @@ from config import (
     GB_TREES,
     GB_DEPTH,
     GB_LR,
+    XGB_TREES,
+    XGB_DEPTH,
+    XGB_LR,
     MODEL_WEIGHT,
     LOCATION_WEIGHT,
     MODERATE_THRESHOLD,
@@ -56,6 +60,15 @@ def train_models(df_dedup, cols):
             GradientBoostingClassifier(
                 n_estimators=GB_TREES, max_depth=GB_DEPTH,
                 learning_rate=GB_LR, random_state=RANDOM_STATE,
+            ),
+            False,
+        ),
+        "XGBoost": (
+            xgb.XGBClassifier(
+                n_estimators=XGB_TREES, max_depth=XGB_DEPTH,
+                learning_rate=XGB_LR, random_state=RANDOM_STATE,
+                scale_pos_weight=(y_tr == 0).sum() / (y_tr == 1).sum(),
+                n_jobs=-1,
             ),
             False,
         ),

@@ -80,7 +80,7 @@ def plot_roc_curves(results, y_test):
 
 def plot_confusion_matrices(results, y_test):
     """Side-by-side confusion matrices."""
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4))
+    fig, axes = plt.subplots(1, len(results), figsize=(5 * len(results), 4))
     for i, (name, res) in enumerate(results.items()):
         cm = confusion_matrix(y_test, res["y_pred"])
         sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=axes[i],

@@ -75,8 +75,10 @@ class RiskGrid:
 
     def snap_to_grid(self, lat, lon):
         """Snap a coordinate to the nearest grid point."""
-        glat = round(round(lat / self.grid_size) * self.grid_size, 4)
-        glon = round(round(lon / self.grid_size) * self.grid_size, 4)
+        lat_steps = round(lat / self.grid_size)
+        lon_steps = round(lon / self.grid_size)
+        glat = round(lat_steps * self.grid_size, 4)
+        glon = round(lon_steps * self.grid_size, 4)
         return (glat, glon)
 
     def get_risk(self, node):
@@ -90,16 +92,19 @@ class RiskGrid:
                 self.lon_min <= node[1] <= self.lon_max)
 
     def neighbors(self, node):
-        """Return 8-connected neighbors that are on land."""
-        lat, lon = node
+        """Return 8-connected neighbors that are on land.
+        Uses integer step arithmetic to avoid floating-point drift.
+        """
         gs = self.grid_size
+        lat_s = round(node[0] / gs)
+        lon_s = round(node[1] / gs)
         dirs = [
-            (gs, 0), (-gs, 0), (0, gs), (0, -gs),
-            (gs, gs), (gs, -gs), (-gs, gs), (-gs, -gs)
+            (1, 0), (-1, 0), (0, 1), (0, -1),
+            (1, 1), (1, -1), (-1, 1), (-1, -1)
         ]
         result = []
         for dlat, dlon in dirs:
-            nb = (round(lat + dlat, 4), round(lon + dlon, 4))
+            nb = (round((lat_s + dlat) * gs, 4), round((lon_s + dlon) * gs, 4))
             if self.in_bounds(nb) and self.is_routable(nb):
                 result.append(nb)
         return result
@@ -200,23 +205,8 @@ def compare_routes(grid, start, goal):
         'distance_increase': (safest['distance_km'] / max(shortest['distance_km'], 0.001)) - 1.0,
     }
 
-    print(f"  Shortest: {shortest['distance_km']:.2f} km | Risk: {shortest['risk_sum']:.4f} | Nodes: {len(shortest['path'])}")
-    print(f"  Safest:   {safest['distance_km']:.2f} km | Risk: {safest['risk_sum']:.4f} | Nodes: {len(safest['path'])}")
+    print(f"  Shortest: {shortest['distance_km']:.2f} km | Risk: {shortest['risk_sum']:.4f}")
+    print(f"  Safest:   {safest['distance_km']:.2f} km | Risk: {safest['risk_sum']:.4f}")
     print(f"  Risk reduction: {result['risk_reduction']*100:.1f}% | Extra distance: {result['distance_increase']*100:.1f}%")
 
     return result
-
-
-if __name__ == "__main__":
-    grid = RiskGrid("outputs/risk_grid.csv")
-
-    routes = [
-        ("Downtown to Scarborough",  (43.6550, -79.3830), (43.7730, -79.2580)),
-        ("Etobicoke to East York",   (43.6440, -79.5100), (43.6920, -79.3270)),
-        ("North York to Waterfront",  (43.7670, -79.4110), (43.6390, -79.3810)),
-    ]
-
-    for name, start, goal in routes:
-        print(f"\n{'='*50}")
-        print(f"  {name}")
-        result = compare_routes(grid, start, goal)

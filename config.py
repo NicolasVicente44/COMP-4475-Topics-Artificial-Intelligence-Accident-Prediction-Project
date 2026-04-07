@@ -33,6 +33,9 @@ RF_DEPTH = 15
 GB_TREES = 200
 GB_DEPTH = 5
 GB_LR = 0.1
+XGB_TREES = 200
+XGB_DEPTH = 5
+XGB_LR = 0.1
 
 # Binary Yes/No columns in the KSI dataset
 BINARY_COLS = [
