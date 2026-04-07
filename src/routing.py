@@ -1,189 +1,128 @@
-# src/routing.py - A* pathfinding on the collision risk grid.
+# src/routing.py - OpenStreetMap pathfinding with risk.
 
-import heapq
-import math
-import numpy as np
+import os
+import networkx as nx
+import osmnx as ox
 import pandas as pd
-from collections import defaultdict
-from config import SHORELINE_LONS, SHORELINE_LATS
+from scipy.spatial import KDTree
+import warnings
 
-
-def haversine(lat1, lon1, lat2, lon2):
-    """Great-circle distance between two lat/lon points in meters."""
-    R = 6371000
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlam = math.radians(lon2 - lon1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
-    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
+# Suppress osmnx/pandas warnings
+warnings.filterwarnings("ignore")
 
 class RiskGrid:
-    """Graph built from collision data for A* pathfinding. Each ~500m cell is a
-    node connected to its 8 neighbors. Cells over Lake Ontario are impassable."""
+    """Graph built from OSMnx data for A* pathfinding.
+    Risk values from the predictive model are assigned to edges."""
 
-    def __init__(self, grid_csv_path, grid_size=0.005):
-        self.grid_size = grid_size
-        self.cells = {}
-        self.cell_data = {}
+    def __init__(self, grid_csv_path):
+        self.grid_csv_path = grid_csv_path
         self.default_risk = 0.05
+        
+        # Load risk data
+        self.df = pd.read_csv(grid_csv_path)
+        self.tree = KDTree(self.df[['glat', 'glon']].values)
+        self.risks = self.df['route_risk'].values
 
-        df = pd.read_csv(grid_csv_path)
-        for _, row in df.iterrows():
-            key = (round(row['glat'], 4), round(row['glon'], 4))
-            self.cells[key] = row['route_risk']
-            self.cell_data[key] = {
-                'risk': row['route_risk'],
-                'count': int(row['count']),
-                'fatals': int(row['fatals']),
-            }
+        graph_path = grid_csv_path.replace(".csv", "_osmnx.graphml")
+        if os.path.exists(graph_path):
+            print(f"  RiskGrid: Loading cached OSM graph from {graph_path}...")
+            self.G = ox.load_graphml(graph_path)
+        else:
+            print("  RiskGrid: Downloading OSM graph for Toronto & Mississauga (this may take a few minutes)...")
+            places = ["Toronto, Ontario, Canada", "Mississauga, Ontario, Canada"]
+            self.G = ox.graph_from_place(places, network_type="drive", simplify=True)
+            
+            print(f"  RiskGrid: Saving OSM graph to {graph_path}...")
+            ox.save_graphml(self.G, graph_path)
+            
+        self._assign_risks()
+        print(f"  RiskGrid: Ready with {len(self.G.nodes)} nodes and {len(self.G.edges)} edges.")
 
-        # Routable = has data OR within 2 steps of data (allows residential routing)
-        self.routable = set(self.cells.keys())
-        for key in list(self.cells.keys()):
-            lat, lon = key
-            for dlat in range(-2, 3):
-                for dlon in range(-2, 3):
-                    neighbor = (round(lat + dlat * grid_size, 4),
-                                round(lon + dlon * grid_size, 4))
-                    if not self._is_water(neighbor[0], neighbor[1]):
-                        self.routable.add(neighbor)
-
-        lats = [k[0] for k in self.cells]
-        lons = [k[1] for k in self.cells]
-        self.lat_min = min(lats) - grid_size * 5
-        self.lat_max = max(lats) + grid_size * 5
-        self.lon_min = min(lons) - grid_size * 5
-        self.lon_max = max(lons) + grid_size * 5
-
-        print(f"  RiskGrid: {len(self.cells)} data cells | {len(self.routable)} routable cells")
-        print(f"  Bounds: ({self.lat_min:.3f},{self.lon_min:.3f}) to ({self.lat_max:.3f},{self.lon_max:.3f})")
-
-    def _is_water(self, lat, lon):
-        """Check if a point is south of the shoreline (in Lake Ontario)."""
-        lons, lats = SHORELINE_LONS, SHORELINE_LATS
-        if lon <= lons[0]:
-            return lat < lats[0]
-        if lon >= lons[-1]:
-            return lat < lats[-1]
-        for i in range(len(lons) - 1):
-            if lons[i] <= lon <= lons[i + 1]:
-                frac = (lon - lons[i]) / (lons[i + 1] - lons[i])
-                shore_lat = lats[i] + frac * (lats[i + 1] - lats[i])
-                return lat < shore_lat
-        return False
-
-    def snap_to_grid(self, lat, lon):
-        """Snap a coordinate to the nearest grid point."""
-        lat_steps = round(lat / self.grid_size)
-        lon_steps = round(lon / self.grid_size)
-        glat = round(lat_steps * self.grid_size, 4)
-        glon = round(lon_steps * self.grid_size, 4)
-        return (glat, glon)
-
-    def get_risk(self, node):
-        return self.cells.get(node, self.default_risk)
-
-    def is_routable(self, node):
-        return node in self.routable
-
-    def in_bounds(self, node):
-        return (self.lat_min <= node[0] <= self.lat_max and
-                self.lon_min <= node[1] <= self.lon_max)
-
-    def neighbors(self, node):
-        """Return 8-connected neighbors that are on land.
-        Uses integer step arithmetic to avoid floating-point drift.
-        """
-        gs = self.grid_size
-        lat_s = round(node[0] / gs)
-        lon_s = round(node[1] / gs)
-        dirs = [
-            (1, 0), (-1, 0), (0, 1), (0, -1),
-            (1, 1), (1, -1), (-1, 1), (-1, -1)
-        ]
-        result = []
-        for dlat, dlon in dirs:
-            nb = (round((lat_s + dlat) * gs, 4), round((lon_s + dlon) * gs, 4))
-            if self.in_bounds(nb) and self.is_routable(nb):
-                result.append(nb)
-        return result
-
-
-def heuristic_distance(a, b):
-    """Haversine heuristic for A* (km)."""
-    return haversine(a[0], a[1], b[0], b[1]) / 1000.0
-
-
-def heuristic_risk(a, b, grid):
-    """Admissible risk heuristic: straight-line cells * min possible risk."""
-    cells_remaining = heuristic_distance(a, b) / (grid.grid_size * 111)
-    return cells_remaining * grid.default_risk * 0.5
-
+        
+    def _assign_risks(self):
+        """Assign distance and risk weights to each edge."""
+        # Process node coordinates once for fast access
+        node_coords = {n: (data['y'], data['x']) for n, data in self.G.nodes(data=True)}
+        
+        # To avoid zero cost exploiting
+        min_risk = 0.05
+        
+        for u, v, k, data in self.G.edges(keys=True, data=True):
+            # Distance in km (length is in meters from OSMnx)
+            dist_km = data.get('length', 0) / 1000.0
+            data['distance_km'] = dist_km
+            
+            # Midpoint to sample risk
+            u_lat, u_lon = node_coords[u]
+            v_lat, v_lon = node_coords[v]
+            mid_lat = (u_lat + v_lat) / 2
+            mid_lon = (u_lon + v_lon) / 2
+            
+            _, idx = self.tree.query([[mid_lat, mid_lon]])
+            risk = self.risks[idx[0]]
+            risk = max(risk, min_risk)
+            
+            data['risk_val'] = risk
+            data['risk_cost'] = risk * dist_km
 
 def astar(grid, start, goal, mode="safest"):
-    """A* search on the risk grid. Mode is 'safest' or 'shortest'."""
-    start = grid.snap_to_grid(*start)
-    goal = grid.snap_to_grid(*goal)
+    """Find safest or shortest route using OSMnx network and A* algorithm."""
+    import math
+    
+    # Nearest nodes (osmnx expects X/lon, then Y/lat)
+    source = ox.distance.nearest_nodes(grid.G, start[1], start[0])
+    target = ox.distance.nearest_nodes(grid.G, goal[1], goal[0])
+    
+    weight = 'risk_cost' if mode == 'safest' else 'distance_km'
+    
+    def heuristic(u, v):
+        """Haversine distance heuristic for A*"""
+        u_y, u_x = grid.G.nodes[u]['y'], grid.G.nodes[u]['x']
+        v_y, v_x = grid.G.nodes[v]['y'], grid.G.nodes[v]['x']
+        
+        R = 6371.0  # km
+        dlat = math.radians(v_y - u_y)
+        dlon = math.radians(v_x - u_x)
+        a = math.sin(dlat / 2)**2 + math.cos(math.radians(u_y)) * math.cos(math.radians(v_y)) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        dist_km = R * c
+        
+        # If searching for safest route, scale the distance by the minimum possible risk 
+        # to ensure the heuristic remains admissible (never overestimates the cost)
+        if mode == "safest":
+            return dist_km * 0.05
+        return dist_km
 
-    open_set = [(0, 0, start)]
-    came_from = {}
-    g_score = defaultdict(lambda: float('inf'))
-    g_score[start] = 0
-    risk_accumulated = defaultdict(lambda: 0.0)
-    dist_accumulated = defaultdict(lambda: 0.0)
-    counter = 1
-    explored = 0
-
-    while open_set:
-        current_f, _, current = heapq.heappop(open_set)
-
-        if current == goal:
-            path = [current]
-            while current in came_from:
-                current = came_from[current]
-                path.append(current)
-            path.reverse()
-            return {
-                'path': path,
-                'total_cost': g_score[goal],
-                'risk_sum': risk_accumulated[goal],
-                'distance_km': dist_accumulated[goal],
-                'explored': explored,
-            }
-
-        explored += 1
-        if explored > 50000:
-            print(f"  WARNING: A* hit {explored} node limit.")
-            break
-
-        for nb in grid.neighbors(current):
-            d = haversine(current[0], current[1], nb[0], nb[1]) / 1000.0
-
-            if mode == "safest":
-                risk = grid.get_risk(nb)
-                step_cost = risk * d
-            else:
-                step_cost = d
-
-            tentative_g = g_score[current] + step_cost
-
-            if tentative_g < g_score[nb]:
-                came_from[nb] = current
-                g_score[nb] = tentative_g
-                risk_accumulated[nb] = risk_accumulated[current] + grid.get_risk(nb) * d
-                dist_accumulated[nb] = dist_accumulated[current] + d
-
-                if mode == "safest":
-                    h = heuristic_risk(nb, goal, grid)
-                else:
-                    h = heuristic_distance(nb, goal)
-
-                heapq.heappush(open_set, (tentative_g + h, counter, nb))
-                counter += 1
-
-    return None
-
+    try:
+        path_nodes = nx.astar_path(grid.G, source, target, heuristic=heuristic, weight=weight)
+    except nx.NetworkXNoPath:
+        return None
+        
+    path = [(grid.G.nodes[n]['y'], grid.G.nodes[n]['x']) for n in path_nodes]
+    
+    dist_sum = 0
+    risk_sum = 0
+    total_cost = 0
+    
+    for i in range(len(path_nodes)-1):
+        u, v = path_nodes[i], path_nodes[i+1]
+        edge_data = grid.G.get_edge_data(u, v)[0]
+        
+        d = edge_data.get('distance_km', 0)
+        r = edge_data.get('risk_val', grid.default_risk)
+        w = edge_data.get(weight, 0)
+        
+        dist_sum += d
+        risk_sum += r * d
+        total_cost += w
+        
+    return {
+        'path': path,
+        'total_cost': total_cost,
+        'risk_sum': risk_sum,
+        'distance_km': dist_sum,
+        'explored': len(path_nodes), # compatibility metric
+    }
 
 def compare_routes(grid, start, goal):
     """Find both shortest and safest routes and return comparison stats."""
@@ -201,8 +140,8 @@ def compare_routes(grid, start, goal):
         'goal': goal,
         'shortest': shortest,
         'safest': safest,
-        'risk_reduction': 1.0 - (safest['risk_sum'] / max(shortest['risk_sum'], 0.001)),
-        'distance_increase': (safest['distance_km'] / max(shortest['distance_km'], 0.001)) - 1.0,
+        'risk_reduction': 1.0 - (safest['risk_sum'] / max(shortest['risk_sum'], 0.0001)),
+        'distance_increase': (safest['distance_km'] / max(shortest['distance_km'], 0.0001)) - 1.0,
     }
 
     print(f"  Shortest: {shortest['distance_km']:.2f} km | Risk: {shortest['risk_sum']:.4f}")
