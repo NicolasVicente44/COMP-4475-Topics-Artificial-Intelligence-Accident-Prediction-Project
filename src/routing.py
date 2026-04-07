@@ -28,7 +28,7 @@ class RiskGrid:
             print(f"  RiskGrid: Loading cached OSM graph from {graph_path}...")
             self.G = ox.load_graphml(graph_path)
         else:
-            print("  RiskGrid: Downloading OSM graph for Toronto & Mississauga (this may take a few minutes)...")
+            print("  RiskGrid: Downloading OSM graph for Toronto (this may take a few minutes)...")
             places = ["Toronto, Ontario, Canada", "Mississauga, Ontario, Canada"]
             self.G = ox.graph_from_place(places, network_type="drive", simplify=True)
             

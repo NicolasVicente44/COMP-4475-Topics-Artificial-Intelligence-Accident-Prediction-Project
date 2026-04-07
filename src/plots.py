@@ -168,10 +168,17 @@ def _plot_categorical_risk(df, col, color, filename, title):
 
 def plot_risk_heatmap(df):
     """Toronto-wide collision risk scatter map."""
+    import contextily as cx
     fig, ax = plt.subplots(figsize=(12, 10))
     sc = ax.scatter(df["LONGITUDE"], df["LATITUDE"], c=df["combined_risk"],
-                    cmap="YlOrRd", alpha=0.4, s=5, vmin=0, vmax=1)
+                    cmap="YlOrRd", alpha=0.3, s=5, vmin=0, vmax=1, zorder=2)
     plt.colorbar(sc, label="Risk Score (0=Low, 1=High)")
+    ax.set_xlim(df["LONGITUDE"].min() - 0.02, df["LONGITUDE"].max() + 0.02)
+    ax.set_ylim(df["LATITUDE"].min() - 0.02, df["LATITUDE"].max() + 0.02)
+    try:
+        cx.add_basemap(ax, crs="EPSG:4326", source=cx.providers.OpenStreetMap.Mapnik, alpha=0.7, zorder=1, zoom=13)
+    except Exception:
+        pass
     ax.set(xlabel="Longitude", ylabel="Latitude", title="Toronto Collision Risk Map")
     _save("10_risk_heatmap.png")
 
@@ -255,12 +262,9 @@ def plot_route_map(all_routes, df):
     for i, route in enumerate(all_routes):
         ax = axes[i]
 
+        import contextily as cx
         ax.scatter(df["LONGITUDE"], df["LATITUDE"], c=df["combined_risk"],
-                   cmap="YlOrRd", alpha=0.12, s=2, vmin=0, vmax=1)
-
-        # Lake Ontario
-        ax.fill_between(SHORELINE_LONS, SHORELINE_LATS, 43.55, color="#3B82F6", alpha=0.08)
-        ax.plot(SHORELINE_LONS, SHORELINE_LATS, color="#3B82F6", linewidth=1, alpha=0.3)
+                   cmap="YlOrRd", alpha=0.15, s=2, vmin=0, vmax=1, zorder=2)
 
         # Shortest (red dashed)
         short_path = route["shortest"]["path"]
@@ -293,6 +297,11 @@ def plot_route_map(all_routes, df):
         pad_lon = (max(all_lons) - min(all_lons)) * 0.25 + 0.01
         ax.set_xlim(min(all_lons) - pad_lon, max(all_lons) + pad_lon)
         ax.set_ylim(min(all_lats) - pad_lat, max(all_lats) + pad_lat)
+
+        try:
+            cx.add_basemap(ax, crs="EPSG:4326", source=cx.providers.OpenStreetMap.Mapnik, alpha=0.6, zorder=1, zoom=13)
+        except Exception:
+            pass
 
         ax.set_title(
             f"{route['name']}\n"

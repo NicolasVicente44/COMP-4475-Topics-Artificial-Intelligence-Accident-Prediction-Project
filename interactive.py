@@ -102,13 +102,17 @@ class App:
         self._draw_base()
 
     def _draw_base(self):
+        import contextily as cx
         self.ax.clear()
         self.ax.set_facecolor(BG)
         self.ax.scatter(self.gdf["glon"], self.gdf["glat"], c=self.gdf["route_risk"],
-                        cmap="YlOrRd", alpha=0.5, s=12, vmin=0, vmax=1)
-        self.ax.fill_between(SHORELINE_LONS, SHORELINE_LATS, 43.55, color="#1a3a5c", alpha=0.3)
+                        cmap="YlOrRd", alpha=0.4, s=12, vmin=0, vmax=1, zorder=2)
         self.ax.set_xlim(-79.65, -79.10)
         self.ax.set_ylim(43.58, 43.86)
+        try:
+            cx.add_basemap(self.ax, crs="EPSG:4326", source=cx.providers.OpenStreetMap.Mapnik, alpha=0.8, zorder=1, zoom=13)
+        except Exception:
+            pass # fallback if offline
         self.ax.set_xlabel("Longitude", color="#8899aa", fontsize=9)
         self.ax.set_ylabel("Latitude", color="#8899aa", fontsize=9)
         self.ax.set_title("Collision Risk Map", color="#e0e0e0", fontsize=12, fontweight="bold")
