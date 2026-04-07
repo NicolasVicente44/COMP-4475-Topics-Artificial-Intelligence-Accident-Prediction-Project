@@ -75,7 +75,7 @@ def main():
 
     best = max(results, key=lambda k: results[k]["auc"])
     print(f"\n{'=' * 60}")
-    print(f"  DONE! Best model: {best}")
+    print(f"  Best model: {best}")
     print(f"  Accuracy: {results[best]['accuracy']:.4f}")
     print(f"  F1: {results[best]['f1']:.4f} | AUC: {results[best]['auc']:.4f}")
     if all_routes:

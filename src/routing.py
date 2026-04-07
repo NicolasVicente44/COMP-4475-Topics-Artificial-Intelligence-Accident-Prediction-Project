@@ -52,6 +52,21 @@ class RiskGrid:
             dist_km = data.get('length', 0) / 1000.0
             data['distance_km'] = dist_km
             
+            # Time in minutes 
+            if 'travel_time' in data:
+                time_mins = data['travel_time'] / 60.0
+            else:
+                speed = 50.0
+                if 'maxspeed' in data:
+                    try:
+                        ms = data['maxspeed']
+                        if isinstance(ms, list): ms = ms[0]
+                        speed = float(str(ms).replace(' km/h', '').replace(' mph', ''))
+                    except:
+                        speed = 50.0
+                time_mins = (dist_km / speed) * 60.0
+            data['time_mins'] = time_mins
+            
             # Midpoint to sample risk
             u_lat, u_lon = node_coords[u]
             v_lat, v_lon = node_coords[v]
@@ -73,7 +88,12 @@ def astar(grid, start, goal, mode="safest"):
     source = ox.distance.nearest_nodes(grid.G, start[1], start[0])
     target = ox.distance.nearest_nodes(grid.G, goal[1], goal[0])
     
-    weight = 'risk_cost' if mode == 'safest' else 'distance_km'
+    if mode == 'safest':
+        weight = 'risk_cost'
+    elif mode == 'fastest':
+        weight = 'time_mins'
+    else:
+        weight = 'distance_km'
     
     def heuristic(u, v):
         """Haversine distance heuristic for A*"""
@@ -91,6 +111,9 @@ def astar(grid, start, goal, mode="safest"):
         # to ensure the heuristic remains admissible (never overestimates the cost)
         if mode == "safest":
             return dist_km * 0.05
+        elif mode == "fastest":
+            # Assuming max speed of 120 km/h, time = dist / speed * 60
+            return (dist_km / 120.0) * 60.0
         return dist_km
 
     try:
@@ -102,6 +125,7 @@ def astar(grid, start, goal, mode="safest"):
     
     dist_sum = 0
     risk_sum = 0
+    time_sum = 0
     total_cost = 0
     
     for i in range(len(path_nodes)-1):
@@ -110,10 +134,12 @@ def astar(grid, start, goal, mode="safest"):
         
         d = edge_data.get('distance_km', 0)
         r = edge_data.get('risk_val', grid.default_risk)
+        t = edge_data.get('time_mins', (d / 50.0) * 60.0)
         w = edge_data.get(weight, 0)
         
         dist_sum += d
         risk_sum += r * d
+        time_sum += t
         total_cost += w
         
     return {
@@ -121,6 +147,7 @@ def astar(grid, start, goal, mode="safest"):
         'total_cost': total_cost,
         'risk_sum': risk_sum,
         'distance_km': dist_sum,
+        'time_mins': time_sum,
         'explored': len(path_nodes), # compatibility metric
     }
 
@@ -130,8 +157,9 @@ def compare_routes(grid, start, goal):
 
     shortest = astar(grid, start, goal, mode="shortest")
     safest = astar(grid, start, goal, mode="safest")
+    fastest = astar(grid, start, goal, mode="fastest")
 
-    if not shortest or not safest:
+    if not shortest or not safest or not fastest:
         print("  ERROR: Could not find a path!")
         return None
 
@@ -140,12 +168,14 @@ def compare_routes(grid, start, goal):
         'goal': goal,
         'shortest': shortest,
         'safest': safest,
+        'fastest': fastest,
         'risk_reduction': 1.0 - (safest['risk_sum'] / max(shortest['risk_sum'], 0.0001)),
         'distance_increase': (safest['distance_km'] / max(shortest['distance_km'], 0.0001)) - 1.0,
     }
 
-    print(f"  Shortest: {shortest['distance_km']:.2f} km | Risk: {shortest['risk_sum']:.4f}")
-    print(f"  Safest:   {safest['distance_km']:.2f} km | Risk: {safest['risk_sum']:.4f}")
+    print(f"  Shortest: {shortest['distance_km']:.2f} km | Time: {shortest['time_mins']:.1f} m | Risk: {shortest['risk_sum']:.4f}")
+    print(f"  Safest:   {safest['distance_km']:.2f} km | Time: {safest['time_mins']:.1f} m | Risk: {safest['risk_sum']:.4f}")
+    print(f"  Fastest:  {fastest['distance_km']:.2f} km | Time: {fastest['time_mins']:.1f} m | Risk: {fastest['risk_sum']:.4f}")
     print(f"  Risk reduction: {result['risk_reduction']*100:.1f}% | Extra distance: {result['distance_increase']*100:.1f}%")
 
     return result
