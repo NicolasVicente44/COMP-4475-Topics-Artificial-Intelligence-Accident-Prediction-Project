@@ -6,24 +6,24 @@ Uses the City of Toronto's KSI (Killed or Seriously Injured) dataset (2006–202
 
 ## How It Works
 
-1. Trains 3 classifiers (Logistic Regression, Random Forest, Gradient Boosting) on ~18k deduplicated accident records
-2. Builds a spatial risk grid (~1km cells) with per-cell collision density
-3. Combines ML prediction (60%) with historical location risk (40%) into a final score
-4. Runs A* search to find both shortest and safest paths between Toronto landmarks
-5. Generates 14 plots covering EDA, model evaluation, risk analysis, and routing
+1. **Machine Learning Pipeline**: Trains 3 robust, hyperparameter-tuned classifiers (Logistic Regression, Random Forest, Gradient Boosting) on ~18k deduplicated accident records to predict collision risk points.
+2. **Real-World Graph Integration**: Dynamically downloads and caches the real driving road network for Toronto using **OSMnx** and constructs a graph network mapped back to risk scores.
+3. **Multi-Objective A* Pathfinding**: Leverages heuristic-driven search algorithms customized for distance, travel time (fastest), and mathematical risk limits (safest) to compute multiple travel routes between any given starting and ending locations.
+4. **Modern Analytical Dashboard**: Renders a dynamic, dark-mode GUI using `customtkinter` with live map embedding to interactively geo-locate custom real-world addresses and directly visualize the visual trade-off metrics (time vs distance vs accident risk reduction).
+5. **Detailed Visualizations**: Generates dynamic diagnostics, including Precision-Recall curves, feature importances, heatmaps, and spatial analyses.
 
 ## Project Structure
 
-```
-config.py              Settings, hyperparameters, and demo data
-main.py                Runs the full pipeline
-interactive.py         Tkinter GUI for exploring safe routes
+```text
+config.py              Settings, hyperparameter grid bounds, shared config
+main.py                Runs the full ML data pipeline and saves outputs
+interactive.py         Modern GUI dashboard for real-world address routing
 data/KSI.csv           Toronto KSI collision dataset
 src/data.py            Data loading and feature engineering
-src/models.py          Training, evaluation, risk scoring
-src/plots.py           All 14 visualization functions
-src/routing.py         A* pathfinding on the risk grid
-outputs/               Generated plots and risk grid CSV
+src/models.py          Training, cross-validation, PR-curves, threshold tuning
+src/plots.py           Suite of diagnostic and exploratory visualization plots
+src/routing.py         Multi-Objective graph reduction logic and OSMnx processing
+outputs/               Generated plots, network cache, and model artifacts
 ```
 
 ## Setup
@@ -36,11 +36,13 @@ python main.py           # run the full pipeline
 python interactive.py    # launch the GUI (needs main.py output)
 ```
 
-## Results
+## Results Summary
 
-- Best model: Random Forest (Acc ~86.9%, F1 ~0.823, AUC ~0.681)
-- Safe routing reduces risk by ~50% with ~38% extra distance on average
+- The Random Forest and Gradient Boosting ensembles are capable of strong predictive accuracy across the balanced dataset.
+- Real-time routing computations mathematically demonstrate substantial percentage reductions in risk when pivoting to the **Safest** routes against slight or moderate compromises to actual travel distance and ETA compared to the **Fastest** route.
 
 ## Technologies
 
-Python, pandas, NumPy, scikit-learn, matplotlib, seaborn, Tkinter
+**Core**: Python, pandas, NumPy, scikit-learn  
+**Geospatial & Mapping**: OSMnx, NetworkX, Contextily  
+**Visualization UI**: matplotlib, seaborn, CustomTkinter (TkAgg embedded canvas)
