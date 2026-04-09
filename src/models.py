@@ -44,7 +44,7 @@ def train_models(df_dedup, cols):
     X_tr_sc = scaler.fit_transform(X_tr)
     X_te_sc = scaler.transform(X_te)
 
-    # Dictionary to store the models
+    # Dictionary to store the 4 models 
     models = {
         "Logistic Regression": (
             LogisticRegression(max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE),
