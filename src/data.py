@@ -90,8 +90,8 @@ def engineer_features(df):
 
     df["is_fatal"] = (df["ACCLASS"] == "Fatal").astype(int)
 
-    # Deduplicate: one row per accident for training (avoids data leakage).
-    # Use max() for binary cols so flags are preserved if ANY person had them.
+    # Deduplication one row per accident for training.
+    # max() for binary cols so flags are preserved if any person had them.
     print(f"  Before dedup: {len(df)} rows | {df['ACCNUM'].nunique()} unique accidents")
 
     agg_dict = {c: "first" for c in df.columns if c != "ACCNUM"}

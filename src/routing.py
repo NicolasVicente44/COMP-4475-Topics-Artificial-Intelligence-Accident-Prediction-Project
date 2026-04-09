@@ -10,6 +10,8 @@ import warnings
 # Suppress osmnx/pandas warnings
 warnings.filterwarnings("ignore")
 
+# The risk grid class builds a graph from OSMnx data for A* pathfinding.
+# Risk values from the predictive model are assigned to edges.
 class RiskGrid:
     """Graph built from OSMnx data for A* pathfinding.
     Risk values from the predictive model are assigned to edges."""
@@ -39,6 +41,7 @@ class RiskGrid:
         print(f"  RiskGrid: Ready with {len(self.G.nodes)} nodes and {len(self.G.edges)} edges.")
 
         
+    # Helper function to assign risks to each edge
     def _assign_risks(self):
         """Assign distance and risk weights to each edge."""
         # Process node coordinates once for fast access
@@ -80,6 +83,7 @@ class RiskGrid:
             data['risk_val'] = risk
             data['risk_cost'] = risk * dist_km
 
+# A* algorithm to find the safest or shortest route depending on the mode selected 
 def astar(grid, start, goal, mode="safest"):
     """Find safest or shortest route using OSMnx network and A* algorithm."""
     import math
@@ -151,6 +155,7 @@ def astar(grid, start, goal, mode="safest"):
         'explored': len(path_nodes), # compatibility metric
     }
 
+# Function to compare the shortest and safest routes and return comparison stats 
 def compare_routes(grid, start, goal):
     """Find both shortest and safest routes and return comparison stats."""
     print(f"\n  Routing from ({start[0]:.4f}, {start[1]:.4f}) to ({goal[0]:.4f}, {goal[1]:.4f})")

@@ -30,7 +30,7 @@ from config import (
     HIGH_THRESHOLD,
 )
 
-
+# Function to train the models
 def train_models(df_dedup, cols):
     """Train three classifiers on deduplicated data and compare performance."""
     X = df_dedup[cols].fillna(0)
@@ -44,6 +44,7 @@ def train_models(df_dedup, cols):
     X_tr_sc = scaler.fit_transform(X_tr)
     X_te_sc = scaler.transform(X_te)
 
+    # Dictionary to store the models
     models = {
         "Logistic Regression": (
             LogisticRegression(max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE),
@@ -74,6 +75,7 @@ def train_models(df_dedup, cols):
         ),
     }
 
+    # Added this dictionary to store the results
     results = {}
     for name, (model, use_scaled) in models.items():
         Xf = X_tr_sc if use_scaled else X_tr
@@ -105,7 +107,7 @@ def train_models(df_dedup, cols):
 
     return results, X_te, y_te
 
-
+# Added this function to compute the risk scores
 def compute_risk_scores(df, results, cols):
     """Add a combined risk score (0-1) blending model prediction and location history."""
     rf = results["Random Forest"]["model"]
@@ -116,7 +118,7 @@ def compute_risk_scores(df, results, cols):
     df["combined_risk"] = df["combined_risk"] / df["combined_risk"].max()
     return df
 
-
+# Added this function to get the top N most dangerous grid cells
 def get_dangerous_areas(df, top_n=10):
     """Return the top N most dangerous grid cells by average risk."""
     return (
@@ -131,7 +133,7 @@ def get_dangerous_areas(df, top_n=10):
         .head(top_n)
     )
 
-
+# Added this function to predict risk for a scenario
 def predict_scenario(rf_model, cols, encoders, scenario):
     """Predict risk for a single scenario dict. Returns (model_risk, combined_risk, level)."""
 

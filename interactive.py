@@ -2,7 +2,6 @@ import os, sys
 import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
-
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib
 matplotlib.use("TkAgg")
@@ -11,6 +10,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 import pandas as pd
 from src.routing import RiskGrid, compare_routes
 
+# Predefined locations for the dropdown menu
 LOCS = {
     "Union Station": (43.6453, -79.3806), "CN Tower": (43.6426, -79.3871),
     "Yonge-Dundas Square": (43.6561, -79.3802), "Scarborough Town Centre": (43.7731, -79.2577),
@@ -25,8 +25,9 @@ NAMES = list(LOCS.keys())
 BG = "#2b2b2b"
 PH = "Type an address or select..."
 
-
+# The main application class for the interactive map and route comparison tool  
 class App:
+    # Initialize the application
     def __init__(self, root):
         self.root = root
         root.title("Toronto Safe Routing")
@@ -46,6 +47,7 @@ class App:
         self._build_map()
         self._draw_base()
 
+    # Helper function to build the sidebar
     def _build_sidebar(self):
         sb = ctk.CTkFrame(self.root, width=360, corner_radius=0)
         sb.grid(row=0, column=0, sticky="nsew")
@@ -65,6 +67,7 @@ class App:
         self.res_frame = ctk.CTkFrame(sb, fg_color="transparent")
         self.res_frame.grid(row=9, column=0, padx=20, pady=(10, 30), sticky="nsew")
 
+    # Helper function to build the map
     def _build_map(self):
         mc = ctk.CTkFrame(self.root, corner_radius=15)
         mc.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
@@ -85,6 +88,7 @@ class App:
         self.canvas.mpl_connect("button_release_event", self._on_release)
         self.canvas.mpl_connect("motion_notify_event", self._on_motion)
 
+    # Helper function to debounce the draw event
     def _debounce_draw(self, ms=80):
         if self._scroll_timer: self.root.after_cancel(self._scroll_timer)
         self._scroll_timer = self.root.after(ms, self._do_draw)
@@ -143,6 +147,7 @@ class App:
         except Exception: pass
         self._style_ax()
 
+    # Helper function to draw the route and display the results 
     def _draw_route(self, r, sn, en):
         self._draw_base()
         for key, clr, ls, lw, fmt in [
@@ -166,6 +171,7 @@ class App:
         self.ax.legend(loc="lower right", fontsize=10, facecolor=BG, edgecolor="#444466", labelcolor="#e0e0e0")
         self._style_ax(f"Route: {fsn}  →  {fen}")
 
+    # Helper function to add a card to the results frame
     def _add_card(self, title, color, data):
         ctk.CTkLabel(self.res_frame, text=title, font=ctk.CTkFont(size=14, weight="bold"),
                      text_color=color).pack(anchor="w", pady=(0, 2))
@@ -174,6 +180,7 @@ class App:
                      ).pack(anchor="w", padx=10)
         ctk.CTkFrame(self.res_frame, height=2, fg_color="#444466").pack(fill="x", pady=10)
 
+    # Helper function to show the results and display the risk reduction
     def _show_results(self, r):
         for w in self.res_frame.winfo_children(): w.destroy()
         self._add_card("FASTEST PATH", "#f1c40f", r["fastest"])
@@ -187,6 +194,7 @@ class App:
         ctk.CTkLabel(self.res_frame, text=f"(+{dt:.1f} mins vs fastest)",
                      font=ctk.CTkFont(size=12), text_color="#f39c12").pack(anchor="w", pady=(5, 0))
 
+    # Helper function to get coordinates from an address using OSMnx 
     def _get_coords(self, name):
         if name in LOCS: return LOCS[name]
         import osmnx as ox
@@ -194,6 +202,7 @@ class App:
         try: return ox.geocode(q)
         except Exception: return None
 
+    # Helper function to run the route comparison and display the results 
     def _run(self):
         sn, en = self.sv.get().strip(), self.ev.get().strip()
         if not sn or not en or sn == PH or en == PH:
@@ -217,7 +226,7 @@ class App:
         except Exception as e:
             self.status.set(f"Error: {e}")
 
-
+ # Main entry point to run the application for the interactive GUI
 if __name__ == "__main__":
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")

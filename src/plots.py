@@ -8,12 +8,12 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix, roc_curve
 from config import OUTPUT_DIR, PLOT_DPI, MODERATE_THRESHOLD, HIGH_THRESHOLD, SHORELINE_LONS, SHORELINE_LATS
 
-
+# Function to save the plots
 def _save(filename):
     plt.savefig(f"{OUTPUT_DIR}/{filename}", dpi=PLOT_DPI, bbox_inches="tight")
     plt.close()
 
-
+# Function to plot the initial exploration
 def plot_exploration(df):
     """6-panel EDA overview."""
     fig, ax = plt.subplots(2, 3, figsize=(18, 10))
@@ -45,6 +45,7 @@ def plot_exploration(df):
     print("  Saved: 01_exploration.png")
 
 
+# Function to plot the model comparison
 def plot_model_comparison(results):
     """Bar charts comparing accuracy, F1, and AUC across models."""
     names = list(results.keys())
@@ -66,6 +67,7 @@ def plot_model_comparison(results):
     _save("02_model_comparison.png")
 
 
+# Function to plot the ROC curves
 def plot_roc_curves(results, y_test):
     """ROC curves for all models."""
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -78,6 +80,7 @@ def plot_roc_curves(results, y_test):
     _save("03_roc_curves.png")
 
 
+# Function to plot the confusion matrices
 def plot_confusion_matrices(results, y_test):
     """Side-by-side confusion matrices."""
     fig, axes = plt.subplots(1, len(results), figsize=(5 * len(results), 4))
@@ -91,6 +94,7 @@ def plot_confusion_matrices(results, y_test):
     _save("04_confusion_matrices.png")
 
 
+# Function to plot the feature importance
 def plot_feature_importance(results, cols):
     """Top 15 feature importances from Random Forest."""
     imp = results["Random Forest"]["model"].feature_importances_
@@ -103,6 +107,7 @@ def plot_feature_importance(results, cols):
     _save("05_feature_importance.png")
 
 
+# Function to plot the model evaluation
 def plot_model_evaluation(results, y_test, cols):
     """Generate all 4 model evaluation plots."""
     plot_model_comparison(results)
@@ -112,6 +117,7 @@ def plot_model_evaluation(results, y_test, cols):
     print("  Saved: 02-05 (model evaluation)")
 
 
+# Function to plot the hourly risk graph
 def plot_hourly_risk(df):
     """Collision count + risk score by hour (dual axis)."""
     hr = df.groupby("hour").agg(
@@ -130,6 +136,7 @@ def plot_hourly_risk(df):
     _save("06_hourly_risk.png")
 
 
+# Function to plot the daily risk graph
 def plot_daily_risk(df):
     """Average risk by day of week."""
     dr = df.groupby("day_of_week")["combined_risk"].mean()
@@ -142,18 +149,21 @@ def plot_daily_risk(df):
     _save("07_daily_risk.png")
 
 
+# Function to plot the road condition risk graph
 def plot_road_condition_risk(df):
     """Risk by road surface condition."""
     _plot_categorical_risk(df, "RDSFCOND", "teal", "08_road_condition_risk.png",
                            "Risk by Road Surface Condition")
 
 
+# Function to plot the visibility risk graph
 def plot_visibility_risk(df):
     """Risk by visibility condition."""
     _plot_categorical_risk(df, "VISIBILITY", "goldenrod", "09_visibility_risk.png",
                            "Risk by Visibility")
 
 
+# Helper function to plot categorical 
 def _plot_categorical_risk(df, col, color, filename, title):
     data = df.groupby(col).agg(
         risk=("combined_risk", "mean"), n=("OBJECTID", "count")
@@ -166,6 +176,7 @@ def _plot_categorical_risk(df, col, color, filename, title):
     _save(filename)
 
 
+# Function to plot the risk heatmap
 def plot_risk_heatmap(df):
     """Toronto-wide collision risk scatter map."""
     import contextily as cx
@@ -183,6 +194,7 @@ def plot_risk_heatmap(df):
     _save("10_risk_heatmap.png")
 
 
+# Function to plot the risk analysis
 def plot_risk_analysis(df):
     """Generate all 5 risk analysis plots."""
     plot_hourly_risk(df)
@@ -193,6 +205,7 @@ def plot_risk_analysis(df):
     print("  Saved: 06-10 (risk analysis)")
 
 
+# Function to plot different real world scenarios to compare risk
 def plot_scenarios(names, risks):
     """Bar chart of scenario risk predictions."""
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -213,6 +226,7 @@ def plot_scenarios(names, risks):
     print("  Saved: 11_scenario_predictions.png")
 
 
+# Function to plot the route comparison of a few common real world routes one might take in the Toronto area
 def plot_route_comparison(all_routes):
     """Side-by-side distance and risk comparison for shortest vs safest routes."""
     n = len(all_routes)
@@ -251,6 +265,7 @@ def plot_route_comparison(all_routes):
     print("  Saved: 12_route_comparison.png")
 
 
+# Function to plot the route map of the shortest vs safest routes on the collision heatmap 
 def plot_route_map(all_routes, df):
     """Route panels showing shortest vs safest paths on collision heatmap."""
     n = len(all_routes)
@@ -337,7 +352,7 @@ def plot_route_map(all_routes, df):
     _save("13_route_map.png")
     print("  Saved: 13_route_map.png")
 
-
+# Function to plot the risk reduction summary of the shortest vs safest routes 
 def plot_risk_reduction_summary(all_routes):
     """Risk reduction % vs extra distance % for each route."""
     fig, ax = plt.subplots(figsize=(12, 6))
